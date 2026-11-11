@@ -4,10 +4,11 @@ Projet **professionnel et pédagogique** pour préparation entretiens **Java Sen
 
 ## État actuel
 
-- **Phases terminées**: 1 → 7.
+- **Phases terminées**: 1 → 8.
 - **Implémentation métier**: parcours commande local complet (saga pédagogique + outbox + idempotence consumer).
 - **Sécurité/résilience**: API key inter-services + retry exponentiel avec jitter.
 - **Observabilité/déploiement**: correlation IDs, endpoint Prometheus, Dockerfiles, manifests Kubernetes, CI GitHub Actions.
+- **Préparation entretien**: banque de 100 questions + 20 scénarios + dossiers thématiques `interview-training/`.
 
 ## Architecture cible
 

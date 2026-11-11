@@ -147,3 +147,37 @@
 ### Limites connues
 - Pas encore de tracing OpenTelemetry distribué ni dashboards Grafana packagés.
 - Pas de push d’images vers registry dans le workflow CI.
+
+## Phase 8 - Finalisation documentaire et préparation entretien
+
+### Statut global
+- État: Terminé
+- Date: 2026-11-11
+
+### Réalisé
+- Complétion des documents stratégiques:
+  - `docs/05-database-and-transactions.md`
+  - `docs/10-testing-strategy.md`
+  - `docs/13-tech-lead-handbook.md`
+  - `docs/17-glossary.md`
+- Banque d’entretien consolidée:
+  - `docs/14-interview-question-bank.md` (100 questions)
+  - `docs/15-interview-scenarios.md` (20 scénarios)
+- Pack `interview-training/` complété pour les 9 catégories avec:
+  - `CONCEPTS.md`
+  - `QUESTIONS.md`
+  - `ANSWERS.md`
+  - `TRAPS.md`
+  - `PROJECT-REFERENCES.md`
+- Mise à jour de cohérence:
+  - `README.md`
+  - `docs/00-learning-roadmap.md`
+  - `docs/01-project-overview.md`
+  - `docs/12-design-decisions.md`
+  - `interview-training/README.md`
+
+### Validation exécutée
+- Relecture structurelle et cohérence inter-docs (phase documentaire).
+
+### Limites connues
+- Certains contenus avancés (OpenTelemetry distribué complet, runbooks d’incident détaillés par service) restent à approfondir dans une phase d’industrialisation supplémentaire.

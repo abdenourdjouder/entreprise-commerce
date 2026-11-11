@@ -10,5 +10,8 @@
 6. **Redis ciblé** (cache-aside catalogue), pas "cache partout".
 7. **Hexagonal architecture** dans chaque service pour testabilité.
 8. **OAuth2/OIDC + JWT** via Gateway pour sécurité API.
+9. **API key stateless transitoire** en phase locale pour sécuriser rapidement les endpoints métier.
+10. **Retry exponentiel avec jitter** sur l’autorisation paiement pour résilience transitoire.
+11. **Correlation IDs + logs MDC + endpoint Prometheus** comme baseline d’observabilité.
 
 Les détails d’arbitrage sont documentés dans `docs/adr/`.
