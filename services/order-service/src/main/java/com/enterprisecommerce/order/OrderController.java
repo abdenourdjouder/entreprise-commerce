@@ -43,6 +43,26 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getOrderEvents(orderId));
     }
 
+    @GetMapping("/{orderId}/outbox")
+    public ResponseEntity<List<OutboxEvent>> getOrderOutboxEvents(@PathVariable String orderId) {
+        Order order = orderService.getOrder(orderId);
+        if (order == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(orderService.getOutboxEvents(orderId));
+    }
+
+    @GetMapping("/outbox/pending")
+    public ResponseEntity<List<OutboxEvent>> getPendingOutboxEvents() {
+        return ResponseEntity.ok(orderService.getPendingOutboxEvents(100));
+    }
+
+    @PostMapping("/outbox/{eventId}/published")
+    public ResponseEntity<Void> markOutboxPublished(@PathVariable String eventId) {
+        orderService.markOutboxEventAsPublished(eventId);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/{orderId}/cancel")
     public ResponseEntity<Order> cancelOrder(@PathVariable String orderId) {
         try {

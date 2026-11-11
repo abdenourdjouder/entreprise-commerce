@@ -15,7 +15,8 @@ class OrderServiceTest {
         PaymentGateway paymentGateway = new LocalPaymentGateway();
         NotificationGateway notificationGateway = new LocalNotificationGateway();
         OrderEventStore orderEventStore = new OrderEventStore();
-        OrderService service = new OrderService(inventoryGateway, paymentGateway, notificationGateway, orderEventStore);
+        OrderOutbox orderOutbox = new OrderOutbox();
+        OrderService service = new OrderService(inventoryGateway, paymentGateway, notificationGateway, orderEventStore, orderOutbox);
 
         Order order = service.createOrder(new CreateOrderRequest("C-1", List.of(
             new OrderItem("SKU-100", 1, new BigDecimal("1499.00"))
@@ -31,6 +32,14 @@ class OrderServiceTest {
                 OrderEventType.PAYMENT_AUTHORIZED,
                 OrderEventType.ORDER_CONFIRMED
             );
+        assertThat(service.getPendingOutboxEvents(100))
+            .extracting(OutboxEvent::type)
+            .containsExactly(
+                OrderEventType.ORDER_CREATED.name(),
+                OrderEventType.STOCK_RESERVED.name(),
+                OrderEventType.PAYMENT_AUTHORIZED.name(),
+                OrderEventType.ORDER_CONFIRMED.name()
+            );
     }
 
     @Test
@@ -39,7 +48,8 @@ class OrderServiceTest {
         PaymentGateway paymentGateway = new LocalPaymentGateway();
         NotificationGateway notificationGateway = new LocalNotificationGateway();
         OrderEventStore orderEventStore = new OrderEventStore();
-        OrderService service = new OrderService(inventoryGateway, paymentGateway, notificationGateway, orderEventStore);
+        OrderOutbox orderOutbox = new OrderOutbox();
+        OrderService service = new OrderService(inventoryGateway, paymentGateway, notificationGateway, orderEventStore, orderOutbox);
 
         assertThatThrownBy(() -> service.createOrder(new CreateOrderRequest("C-1", List.of(
             new OrderItem("SKU-100", 1, new BigDecimal("10.00")),
@@ -54,6 +64,9 @@ class OrderServiceTest {
         assertThat(service.getOrderEvents(actual.id()))
             .extracting(OrderEvent::type)
             .contains(OrderEventType.STOCK_RELEASED, OrderEventType.ORDER_FAILED);
+        assertThat(service.getOutboxEvents(actual.id()))
+            .extracting(OutboxEvent::type)
+            .contains(OrderEventType.ORDER_FAILED.name());
     }
 
     @Test
@@ -62,7 +75,8 @@ class OrderServiceTest {
         PaymentGateway paymentGateway = new LocalPaymentGateway();
         NotificationGateway notificationGateway = new LocalNotificationGateway();
         OrderEventStore orderEventStore = new OrderEventStore();
-        OrderService service = new OrderService(inventoryGateway, paymentGateway, notificationGateway, orderEventStore);
+        OrderOutbox orderOutbox = new OrderOutbox();
+        OrderService service = new OrderService(inventoryGateway, paymentGateway, notificationGateway, orderEventStore, orderOutbox);
 
         Order order = service.createOrder(new CreateOrderRequest("C-1", List.of(
             new OrderItem("SKU-100", 1, new BigDecimal("1499.00"))
@@ -73,5 +87,25 @@ class OrderServiceTest {
         assertThat(service.getOrderEvents(order.id()))
             .extracting(OrderEvent::type)
             .contains(OrderEventType.PAYMENT_REFUNDED, OrderEventType.ORDER_CANCELLED);
+    }
+
+    @Test
+    void shouldMarkOutboxEventsAsPublished() {
+        InventoryGateway inventoryGateway = new LocalInventoryGateway();
+        PaymentGateway paymentGateway = new LocalPaymentGateway();
+        NotificationGateway notificationGateway = new LocalNotificationGateway();
+        OrderEventStore orderEventStore = new OrderEventStore();
+        OrderOutbox orderOutbox = new OrderOutbox();
+        OrderService service = new OrderService(inventoryGateway, paymentGateway, notificationGateway, orderEventStore, orderOutbox);
+
+        service.createOrder(new CreateOrderRequest("C-1", List.of(
+            new OrderItem("SKU-100", 1, new BigDecimal("1499.00"))
+        )));
+
+        OutboxEvent firstEvent = service.getPendingOutboxEvents(1).get(0);
+        service.markOutboxEventAsPublished(firstEvent.id());
+
+        assertThat(service.getPendingOutboxEvents(100))
+            .allMatch(event -> !event.id().equals(firstEvent.id()));
     }
 }

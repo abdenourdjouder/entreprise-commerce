@@ -16,17 +16,20 @@ public class OrderService {
     private final PaymentGateway paymentGateway;
     private final NotificationGateway notificationGateway;
     private final OrderEventStore orderEventStore;
+    private final OrderOutbox orderOutbox;
 
     public OrderService(
         InventoryGateway inventoryGateway,
         PaymentGateway paymentGateway,
         NotificationGateway notificationGateway,
-        OrderEventStore orderEventStore
+        OrderEventStore orderEventStore,
+        OrderOutbox orderOutbox
     ) {
         this.inventoryGateway = inventoryGateway;
         this.paymentGateway = paymentGateway;
         this.notificationGateway = notificationGateway;
         this.orderEventStore = orderEventStore;
+        this.orderOutbox = orderOutbox;
     }
 
     public Order createOrder(CreateOrderRequest request) {
@@ -34,13 +37,13 @@ public class OrderService {
 
         List<OrderItem> reservedItems = new ArrayList<>();
         String orderId = "ORD-" + UUID.randomUUID();
-        orderEventStore.append(orderId, OrderEventType.ORDER_CREATED, "Order request accepted");
+        appendOrderEvent(orderId, OrderEventType.ORDER_CREATED, "Order request accepted");
 
         try {
             for (OrderItem item : request.items()) {
                 inventoryGateway.reserve(item.sku(), item.quantity(), orderId);
                 reservedItems.add(item);
-                orderEventStore.append(
+                appendOrderEvent(
                     orderId,
                     OrderEventType.STOCK_RESERVED,
                     "Reserved " + item.quantity() + " of " + item.sku()
@@ -52,16 +55,16 @@ public class OrderService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
             String paymentId = paymentGateway.authorize(orderId, total, "EUR");
-            orderEventStore.append(orderId, OrderEventType.PAYMENT_AUTHORIZED, "PaymentId " + paymentId + " authorised");
+            appendOrderEvent(orderId, OrderEventType.PAYMENT_AUTHORIZED, "PaymentId " + paymentId + " authorised");
             Order order = new Order(orderId, request.customerId(), request.items(), total, OrderStatus.PAID, paymentId);
             orders.put(orderId, order);
-            orderEventStore.append(orderId, OrderEventType.ORDER_CONFIRMED, "Order confirmed and paid");
+            appendOrderEvent(orderId, OrderEventType.ORDER_CONFIRMED, "Order confirmed and paid");
             notificationGateway.notifyOrderCreated(request.customerId(), orderId);
             return order;
         } catch (IllegalStateException | IllegalArgumentException ex) {
             for (OrderItem item : reservedItems) {
                 inventoryGateway.release(item.sku(), item.quantity(), orderId);
-                orderEventStore.append(
+                appendOrderEvent(
                     orderId,
                     OrderEventType.STOCK_RELEASED,
                     "Released " + item.quantity() + " of " + item.sku()
@@ -69,7 +72,7 @@ public class OrderService {
             }
             Order failed = new Order(orderId, request.customerId(), request.items(), BigDecimal.ZERO, OrderStatus.FAILED, null);
             orders.put(orderId, failed);
-            orderEventStore.append(orderId, OrderEventType.ORDER_FAILED, ex.getMessage());
+            appendOrderEvent(orderId, OrderEventType.ORDER_FAILED, ex.getMessage());
             throw ex;
         }
     }
@@ -90,7 +93,7 @@ public class OrderService {
 
         for (OrderItem item : order.items()) {
             inventoryGateway.release(item.sku(), item.quantity(), orderId);
-            orderEventStore.append(
+            appendOrderEvent(
                 orderId,
                 OrderEventType.STOCK_RELEASED,
                 "Released " + item.quantity() + " of " + item.sku()
@@ -99,18 +102,36 @@ public class OrderService {
 
         if (order.paymentId() != null) {
             paymentGateway.refund(order.paymentId());
-            orderEventStore.append(orderId, OrderEventType.PAYMENT_REFUNDED, "PaymentId " + order.paymentId() + " refunded");
+            appendOrderEvent(orderId, OrderEventType.PAYMENT_REFUNDED, "PaymentId " + order.paymentId() + " refunded");
         }
 
         Order cancelled = new Order(order.id(), order.customerId(), order.items(), order.totalAmount(), OrderStatus.CANCELLED, order.paymentId());
         orders.put(orderId, cancelled);
-        orderEventStore.append(orderId, OrderEventType.ORDER_CANCELLED, "Order cancelled by user");
+        appendOrderEvent(orderId, OrderEventType.ORDER_CANCELLED, "Order cancelled by user");
         notificationGateway.notifyOrderCancelled(order.customerId(), orderId);
         return cancelled;
     }
 
     public List<OrderEvent> getOrderEvents(String orderId) {
         return orderEventStore.findByOrderId(orderId);
+    }
+
+    public List<OutboxEvent> getOutboxEvents(String orderId) {
+        return orderOutbox.listByAggregateId(orderId);
+    }
+
+    public List<OutboxEvent> getPendingOutboxEvents(int limit) {
+        int boundedLimit = Math.max(1, limit);
+        return orderOutbox.listPending(boundedLimit);
+    }
+
+    public void markOutboxEventAsPublished(String eventId) {
+        orderOutbox.markPublished(eventId);
+    }
+
+    private void appendOrderEvent(String orderId, OrderEventType type, String details) {
+        orderEventStore.append(orderId, type, details);
+        orderOutbox.append(orderId, type.name(), details);
     }
 
     private void validateRequest(CreateOrderRequest request) {

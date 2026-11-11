@@ -6,9 +6,11 @@
 - **Classes clés**:
   - `OrderService`: orchestration métier et transitions d’état.
   - `OrderEventStore`: historique des événements par commande (`ORDER_CREATED`, `STOCK_RESERVED`, `PAYMENT_AUTHORIZED`, etc.).
-  - `OrderController`: endpoints `/api/orders`, `/api/orders/{id}`, `/api/orders/{id}/events`, `/api/orders/{id}/cancel`.
+  - `OrderOutbox`: outbox transactionnelle pédagogique (événements `PENDING` puis `PUBLISHED`).
+  - `OrderController`: endpoints `/api/orders`, `/api/orders/{id}`, `/api/orders/{id}/events`, `/api/orders/{id}/outbox`, `/api/orders/outbox/pending`, `/api/orders/outbox/{eventId}/published`, `/api/orders/{id}/cancel`.
 - **Tests associés**:
   - `OrderServiceTest#createOrderShouldReserveInventoryAndAuthorisePayment`
   - `OrderServiceTest#createOrderShouldFailWhenInventoryNotAvailableAndEmitFailureEvents`
   - `OrderServiceTest#cancelOrderShouldRefundAndReleaseStock`
+  - `OrderServiceTest#shouldMarkOutboxEventsAsPublished`
 - **Questions entretien**: "Pourquoi pas un 2PC pour commande distribuée ?"

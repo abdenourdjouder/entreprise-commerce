@@ -21,6 +21,15 @@ public class NotificationController {
         NotificationEvent event = notificationService.send(request.customerId(), request.type(), request.message());
         return ResponseEntity.ok(event);
     }
+
+    @PostMapping("/consume/order-event")
+    public ResponseEntity<NotificationConsumeResult> consumeOrderEvent(@RequestBody OrderNotificationEvent request) {
+        try {
+            return ResponseEntity.ok(notificationService.consumeOrderEvent(request));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
 }
 
 record NotificationMessageRequest(String customerId, NotificationType type, String message) {

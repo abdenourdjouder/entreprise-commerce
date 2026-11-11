@@ -70,3 +70,29 @@
 ### Limites connues
 - Les événements sont en mémoire et non durables.
 - Pas encore de publication Kafka ni de transactional outbox (prévu phase suivante).
+
+## Phase 5 - Outbox, Saga et idempotence
+
+### Statut global
+- État: Terminé (version pédagogique locale)
+- Date: 2026-11-11
+
+### Réalisé
+- `order-service`:
+  - Ajout d’une outbox applicative en mémoire (`OrderOutbox`, `OutboxEvent`, `OutboxStatus`).
+  - Écriture duale journal métier + outbox pour chaque transition saga.
+  - Endpoints d’inspection/pilotage outbox:
+    - `GET /api/orders/{orderId}/outbox`
+    - `GET /api/orders/outbox/pending`
+    - `POST /api/orders/outbox/{eventId}/published`
+- `notification-service`:
+  - Ajout d’un consumer idempotent (`consumeOrderEvent`) avec déduplication par `eventId`.
+  - Endpoint de consommation simulée: `POST /api/notifications/consume/order-event`.
+
+### Validation exécutée
+- `mvn -q -pl services/order-service,services/notification-service -am test` ✅
+- `mvn -q test` ✅
+
+### Limites connues
+- Outbox et déduplication non durables (in-memory).
+- Pas encore de publication Kafka, retry exponentiel ni DLQ (phase suivante).
