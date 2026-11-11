@@ -9,6 +9,7 @@
   - `OrderEventStore`: historique des événements par commande (`ORDER_CREATED`, `STOCK_RESERVED`, `PAYMENT_AUTHORIZED`, etc.).
   - `OrderOutbox`: outbox transactionnelle pédagogique (événements `PENDING` puis `PUBLISHED`).
   - `security/ApiKeyAuthenticationFilter` + `security/SecurityConfig`: protection des endpoints `/api/**` via `X-API-KEY`.
+  - `observability/CorrelationIdFilter`: propagation/génération de correlation ID.
   - `OrderController`: endpoints `/api/orders`, `/api/orders/{id}`, `/api/orders/{id}/events`, `/api/orders/{id}/outbox`, `/api/orders/outbox/pending`, `/api/orders/outbox/{eventId}/published`, `/api/orders/{id}/cancel`.
 - **Tests associés**:
   - `OrderServiceTest#createOrderShouldReserveInventoryAndAuthorisePayment`
@@ -18,4 +19,5 @@
   - `OrderServiceTest#createOrderShouldRetryPaymentAuthorizationBeforeSuccess`
   - `PaymentAuthorizationRetrierTest`
   - `OrderSecurityIntegrationTest`
+  - `OrderCorrelationIdIntegrationTest`
 - **Questions entretien**: "Pourquoi pas un 2PC pour commande distribuée ?"

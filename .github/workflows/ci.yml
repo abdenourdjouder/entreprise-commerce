@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - feature/**
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Run tests
+        run: mvn -q test
+
+      - name: Package order and notification services
+        run: mvn -q -pl services/order-service,services/notification-service -am package -DskipTests
+
+      - name: Build order-service image
+        run: docker build -t ecp/order-service:ci -f services/order-service/Dockerfile services/order-service
+
+      - name: Build notification-service image
+        run: docker build -t ecp/notification-service:ci -f services/notification-service/Dockerfile services/notification-service

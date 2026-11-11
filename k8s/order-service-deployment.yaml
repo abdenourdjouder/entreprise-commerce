@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  labels:
+    app: order-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+        - name: order-service
+          image: ghcr.io/abdenourdjouder/entreprise-commerce/order-service:latest
+          ports:
+            - containerPort: 8083
+          env:
+            - name: SECURITY_API_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: order-service-config
+                  key: SECURITY_API_KEY
+            - name: RESILIENCE_PAYMENT_RETRY_MAX_ATTEMPTS
+              valueFrom:
+                configMapKeyRef:
+                  name: order-service-config
+                  key: RESILIENCE_PAYMENT_RETRY_MAX_ATTEMPTS
+            - name: RESILIENCE_PAYMENT_RETRY_INITIAL_DELAY_MS
+              valueFrom:
+                configMapKeyRef:
+                  name: order-service-config
+                  key: RESILIENCE_PAYMENT_RETRY_INITIAL_DELAY_MS
+            - name: RESILIENCE_PAYMENT_RETRY_MAX_DELAY_MS
+              valueFrom:
+                configMapKeyRef:
+                  name: order-service-config
+                  key: RESILIENCE_PAYMENT_RETRY_MAX_DELAY_MS
+            - name: RESILIENCE_PAYMENT_RETRY_JITTER_FACTOR
+              valueFrom:
+                configMapKeyRef:
+                  name: order-service-config
+                  key: RESILIENCE_PAYMENT_RETRY_JITTER_FACTOR
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

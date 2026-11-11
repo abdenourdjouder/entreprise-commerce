@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: order-service-config
+data:
+  SECURITY_API_KEY: "local-dev-api-key"
+  RESILIENCE_PAYMENT_RETRY_MAX_ATTEMPTS: "3"
+  RESILIENCE_PAYMENT_RETRY_INITIAL_DELAY_MS: "50"
+  RESILIENCE_PAYMENT_RETRY_MAX_DELAY_MS: "500"
+  RESILIENCE_PAYMENT_RETRY_JITTER_FACTOR: "0.25"

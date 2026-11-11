@@ -123,3 +123,27 @@
 ### Limites connues
 - Authentification API key uniquement (pas encore OAuth2/OIDC/JWT).
 - Retry local intra-processus uniquement (pas encore circuit breaker / timeout distribué / DLQ).
+
+## Phase 7 - Observabilité et déploiement
+
+### Statut global
+- État: Terminé (baseline exécutable)
+- Date: 2026-11-11
+
+### Réalisé
+- Observabilité:
+  - Correlation IDs sur `order-service` et `notification-service` (header + MDC + propagation réponse).
+  - Pattern de logs homogène avec `corr=<correlationId>`.
+  - Exposition Prometheus (`/actuator/prometheus`) via Micrometer registry.
+- Déploiement:
+  - Dockerfiles pour `order-service` et `notification-service`.
+  - Manifests Kubernetes pédagogiques (ConfigMap, Deployment, Service, probes, resources).
+  - Pipeline CI GitHub Actions (`.github/workflows/ci.yml`) avec tests Maven + build images Docker.
+
+### Validation exécutée
+- `mvn -q -pl services/order-service,services/notification-service -am test` ✅
+- `mvn -q test` ✅
+
+### Limites connues
+- Pas encore de tracing OpenTelemetry distribué ni dashboards Grafana packagés.
+- Pas de push d’images vers registry dans le workflow CI.
