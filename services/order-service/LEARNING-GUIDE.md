@@ -5,12 +5,17 @@
 - **Flux clé**: create order -> reserve stock -> payment -> order confirmed; échec -> compensation stock + order failed.
 - **Classes clés**:
   - `OrderService`: orchestration métier et transitions d’état.
+  - `PaymentAuthorizationRetrier`: retry exponentiel avec jitter pour l’autorisation de paiement.
   - `OrderEventStore`: historique des événements par commande (`ORDER_CREATED`, `STOCK_RESERVED`, `PAYMENT_AUTHORIZED`, etc.).
   - `OrderOutbox`: outbox transactionnelle pédagogique (événements `PENDING` puis `PUBLISHED`).
+  - `security/ApiKeyAuthenticationFilter` + `security/SecurityConfig`: protection des endpoints `/api/**` via `X-API-KEY`.
   - `OrderController`: endpoints `/api/orders`, `/api/orders/{id}`, `/api/orders/{id}/events`, `/api/orders/{id}/outbox`, `/api/orders/outbox/pending`, `/api/orders/outbox/{eventId}/published`, `/api/orders/{id}/cancel`.
 - **Tests associés**:
   - `OrderServiceTest#createOrderShouldReserveInventoryAndAuthorisePayment`
   - `OrderServiceTest#createOrderShouldFailWhenInventoryNotAvailableAndEmitFailureEvents`
   - `OrderServiceTest#cancelOrderShouldRefundAndReleaseStock`
   - `OrderServiceTest#shouldMarkOutboxEventsAsPublished`
+  - `OrderServiceTest#createOrderShouldRetryPaymentAuthorizationBeforeSuccess`
+  - `PaymentAuthorizationRetrierTest`
+  - `OrderSecurityIntegrationTest`
 - **Questions entretien**: "Pourquoi pas un 2PC pour commande distribuée ?"

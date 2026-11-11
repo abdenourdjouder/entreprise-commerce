@@ -96,3 +96,30 @@
 ### Limites connues
 - Outbox et déduplication non durables (in-memory).
 - Pas encore de publication Kafka, retry exponentiel ni DLQ (phase suivante).
+
+## Phase 6 - Sécurité, tests et résilience
+
+### Statut global
+- État: Terminé (version pédagogique locale)
+- Date: 2026-11-11
+
+### Réalisé
+- `order-service`:
+  - Activation Spring Security avec API key (`X-API-KEY`) sur `/api/**`.
+  - Ajout d’un retry exponentiel avec jitter (`PaymentAuthorizationRetrier`) sur l’autorisation de paiement.
+  - Paramétrage `resilience.payment.retry.*` dans `application.yml`.
+- `notification-service`:
+  - Activation Spring Security avec API key (`X-API-KEY`) sur `/api/**`.
+- Tests ajoutés:
+  - `OrderSecurityIntegrationTest`
+  - `NotificationSecurityIntegrationTest`
+  - `PaymentAuthorizationRetrierTest`
+  - scénario retry appliqué dans `OrderServiceTest`.
+
+### Validation exécutée
+- `mvn -q -pl services/order-service,services/notification-service -am test` ✅
+- `mvn -q test` ✅
+
+### Limites connues
+- Authentification API key uniquement (pas encore OAuth2/OIDC/JWT).
+- Retry local intra-processus uniquement (pas encore circuit breaker / timeout distribué / DLQ).

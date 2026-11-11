@@ -11,3 +11,12 @@ management:
   endpoint:
     health:
       show-details: always
+security:
+  api-key: local-dev-api-key
+resilience:
+  payment:
+    retry:
+      max-attempts: 3
+      initial-delay-ms: 50
+      max-delay-ms: 500
+      jitter-factor: 0.25

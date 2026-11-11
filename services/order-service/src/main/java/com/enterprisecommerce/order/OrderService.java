@@ -17,19 +17,22 @@ public class OrderService {
     private final NotificationGateway notificationGateway;
     private final OrderEventStore orderEventStore;
     private final OrderOutbox orderOutbox;
+    private final PaymentAuthorizationRetrier paymentAuthorizationRetrier;
 
     public OrderService(
         InventoryGateway inventoryGateway,
         PaymentGateway paymentGateway,
         NotificationGateway notificationGateway,
         OrderEventStore orderEventStore,
-        OrderOutbox orderOutbox
+        OrderOutbox orderOutbox,
+        PaymentAuthorizationRetrier paymentAuthorizationRetrier
     ) {
         this.inventoryGateway = inventoryGateway;
         this.paymentGateway = paymentGateway;
         this.notificationGateway = notificationGateway;
         this.orderEventStore = orderEventStore;
         this.orderOutbox = orderOutbox;
+        this.paymentAuthorizationRetrier = paymentAuthorizationRetrier;
     }
 
     public Order createOrder(CreateOrderRequest request) {
@@ -54,7 +57,9 @@ public class OrderService {
                 .map(item -> item.unitPrice().multiply(BigDecimal.valueOf(item.quantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            String paymentId = paymentGateway.authorize(orderId, total, "EUR");
+            String paymentId = paymentAuthorizationRetrier.authorize(
+                () -> paymentGateway.authorize(orderId, total, "EUR")
+            );
             appendOrderEvent(orderId, OrderEventType.PAYMENT_AUTHORIZED, "PaymentId " + paymentId + " authorised");
             Order order = new Order(orderId, request.customerId(), request.items(), total, OrderStatus.PAID, paymentId);
             orders.put(orderId, order);

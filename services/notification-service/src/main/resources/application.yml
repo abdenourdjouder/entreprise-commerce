@@ -11,3 +11,5 @@ management:
   endpoint:
     health:
       show-details: always
+security:
+  api-key: local-dev-api-key

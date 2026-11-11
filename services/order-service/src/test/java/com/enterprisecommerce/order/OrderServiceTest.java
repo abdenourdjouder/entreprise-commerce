@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 class OrderServiceTest {
@@ -16,7 +17,15 @@ class OrderServiceTest {
         NotificationGateway notificationGateway = new LocalNotificationGateway();
         OrderEventStore orderEventStore = new OrderEventStore();
         OrderOutbox orderOutbox = new OrderOutbox();
-        OrderService service = new OrderService(inventoryGateway, paymentGateway, notificationGateway, orderEventStore, orderOutbox);
+        PaymentAuthorizationRetrier paymentAuthorizationRetrier = defaultRetrier();
+        OrderService service = new OrderService(
+            inventoryGateway,
+            paymentGateway,
+            notificationGateway,
+            orderEventStore,
+            orderOutbox,
+            paymentAuthorizationRetrier
+        );
 
         Order order = service.createOrder(new CreateOrderRequest("C-1", List.of(
             new OrderItem("SKU-100", 1, new BigDecimal("1499.00"))
@@ -49,7 +58,15 @@ class OrderServiceTest {
         NotificationGateway notificationGateway = new LocalNotificationGateway();
         OrderEventStore orderEventStore = new OrderEventStore();
         OrderOutbox orderOutbox = new OrderOutbox();
-        OrderService service = new OrderService(inventoryGateway, paymentGateway, notificationGateway, orderEventStore, orderOutbox);
+        PaymentAuthorizationRetrier paymentAuthorizationRetrier = defaultRetrier();
+        OrderService service = new OrderService(
+            inventoryGateway,
+            paymentGateway,
+            notificationGateway,
+            orderEventStore,
+            orderOutbox,
+            paymentAuthorizationRetrier
+        );
 
         assertThatThrownBy(() -> service.createOrder(new CreateOrderRequest("C-1", List.of(
             new OrderItem("SKU-100", 1, new BigDecimal("10.00")),
@@ -76,7 +93,15 @@ class OrderServiceTest {
         NotificationGateway notificationGateway = new LocalNotificationGateway();
         OrderEventStore orderEventStore = new OrderEventStore();
         OrderOutbox orderOutbox = new OrderOutbox();
-        OrderService service = new OrderService(inventoryGateway, paymentGateway, notificationGateway, orderEventStore, orderOutbox);
+        PaymentAuthorizationRetrier paymentAuthorizationRetrier = defaultRetrier();
+        OrderService service = new OrderService(
+            inventoryGateway,
+            paymentGateway,
+            notificationGateway,
+            orderEventStore,
+            orderOutbox,
+            paymentAuthorizationRetrier
+        );
 
         Order order = service.createOrder(new CreateOrderRequest("C-1", List.of(
             new OrderItem("SKU-100", 1, new BigDecimal("1499.00"))
@@ -96,7 +121,15 @@ class OrderServiceTest {
         NotificationGateway notificationGateway = new LocalNotificationGateway();
         OrderEventStore orderEventStore = new OrderEventStore();
         OrderOutbox orderOutbox = new OrderOutbox();
-        OrderService service = new OrderService(inventoryGateway, paymentGateway, notificationGateway, orderEventStore, orderOutbox);
+        PaymentAuthorizationRetrier paymentAuthorizationRetrier = defaultRetrier();
+        OrderService service = new OrderService(
+            inventoryGateway,
+            paymentGateway,
+            notificationGateway,
+            orderEventStore,
+            orderOutbox,
+            paymentAuthorizationRetrier
+        );
 
         service.createOrder(new CreateOrderRequest("C-1", List.of(
             new OrderItem("SKU-100", 1, new BigDecimal("1499.00"))
@@ -107,5 +140,49 @@ class OrderServiceTest {
 
         assertThat(service.getPendingOutboxEvents(100))
             .allMatch(event -> !event.id().equals(firstEvent.id()));
+    }
+
+    @Test
+    void createOrderShouldRetryPaymentAuthorizationBeforeSuccess() {
+        InventoryGateway inventoryGateway = new LocalInventoryGateway();
+        AtomicInteger attempts = new AtomicInteger();
+        PaymentGateway flakyGateway = new PaymentGateway() {
+            @Override
+            public String authorize(String orderId, BigDecimal amount, String currency) {
+                if (attempts.incrementAndGet() < 3) {
+                    throw new IllegalStateException("Temporary payment issue");
+                }
+                return "PAY-retried";
+            }
+
+            @Override
+            public void refund(String paymentId) {
+            }
+        };
+        NotificationGateway notificationGateway = new LocalNotificationGateway();
+        OrderEventStore orderEventStore = new OrderEventStore();
+        OrderOutbox orderOutbox = new OrderOutbox();
+        PaymentAuthorizationRetrier paymentAuthorizationRetrier = defaultRetrier();
+        OrderService service = new OrderService(
+            inventoryGateway,
+            flakyGateway,
+            notificationGateway,
+            orderEventStore,
+            orderOutbox,
+            paymentAuthorizationRetrier
+        );
+
+        Order order = service.createOrder(new CreateOrderRequest("C-1", List.of(
+            new OrderItem("SKU-100", 1, new BigDecimal("1499.00"))
+        )));
+
+        assertThat(order.status()).isEqualTo(OrderStatus.PAID);
+        assertThat(order.paymentId()).isEqualTo("PAY-retried");
+        assertThat(attempts.get()).isEqualTo(3);
+    }
+
+    private PaymentAuthorizationRetrier defaultRetrier() {
+        return new PaymentAuthorizationRetrier(3, 0, 0, 0, () -> 0.0, milliseconds -> {
+        });
     }
 }
