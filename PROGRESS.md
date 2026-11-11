@@ -28,7 +28,7 @@
 ## Phase 3 - Bootstraps métier et parcours de commande
 
 ### Statut global
-- État: En cours
+- État: Terminé
 - Date: 2026-11-11
 
 ### Réalisé
@@ -51,3 +51,22 @@
 ### Limites connues
 - Les services restent en mode mémoire pour garder le projet simple et testable sans dépendances externes.
 - L’intégration PostgreSQL, Kafka et Redis sera ajoutée dans la phase suivante.
+
+## Phase 4 - Parcours de commande orienté événements
+
+### Statut global
+- État: Terminé (version pédagogique locale)
+- Date: 2026-11-11
+
+### Réalisé
+- Ajout d’un journal d’événements métier sur `order-service` (`OrderEventStore`).
+- Instrumentation des transitions de commande (création, réservation, paiement, confirmation, compensation, annulation).
+- Exposition de l’historique via `GET /api/orders/{orderId}/events`.
+- Renforcement des tests `OrderServiceTest` pour couvrir les scénarios succès, échec avec compensation, et annulation.
+
+### Validation exécutée
+- `mvn -q -pl services/order-service test` ✅
+
+### Limites connues
+- Les événements sont en mémoire et non durables.
+- Pas encore de publication Kafka ni de transactional outbox (prévu phase suivante).

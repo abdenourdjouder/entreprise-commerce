@@ -14,7 +14,8 @@ class OrderServiceTest {
         InventoryGateway inventoryGateway = new LocalInventoryGateway();
         PaymentGateway paymentGateway = new LocalPaymentGateway();
         NotificationGateway notificationGateway = new LocalNotificationGateway();
-        OrderService service = new OrderService(inventoryGateway, paymentGateway, notificationGateway);
+        OrderEventStore orderEventStore = new OrderEventStore();
+        OrderService service = new OrderService(inventoryGateway, paymentGateway, notificationGateway, orderEventStore);
 
         Order order = service.createOrder(new CreateOrderRequest("C-1", List.of(
             new OrderItem("SKU-100", 1, new BigDecimal("1499.00"))
@@ -22,18 +23,55 @@ class OrderServiceTest {
 
         assertThat(order.status()).isEqualTo(OrderStatus.PAID);
         assertThat(order.paymentId()).isNotNull();
+        assertThat(service.getOrderEvents(order.id()))
+            .extracting(OrderEvent::type)
+            .containsExactly(
+                OrderEventType.ORDER_CREATED,
+                OrderEventType.STOCK_RESERVED,
+                OrderEventType.PAYMENT_AUTHORIZED,
+                OrderEventType.ORDER_CONFIRMED
+            );
     }
 
     @Test
-    void createOrderShouldFailWhenInventoryNotAvailable() {
+    void createOrderShouldFailWhenInventoryNotAvailableAndEmitFailureEvents() {
         InventoryGateway inventoryGateway = new LocalInventoryGateway();
         PaymentGateway paymentGateway = new LocalPaymentGateway();
         NotificationGateway notificationGateway = new LocalNotificationGateway();
-        OrderService service = new OrderService(inventoryGateway, paymentGateway, notificationGateway);
+        OrderEventStore orderEventStore = new OrderEventStore();
+        OrderService service = new OrderService(inventoryGateway, paymentGateway, notificationGateway, orderEventStore);
 
         assertThatThrownBy(() -> service.createOrder(new CreateOrderRequest("C-1", List.of(
-            new OrderItem("SKU-100", 99, new BigDecimal("10.00"))
+            new OrderItem("SKU-100", 1, new BigDecimal("10.00")),
+            new OrderItem("SKU-300", 99, new BigDecimal("12.00"))
         ))))
             .isInstanceOf(IllegalStateException.class);
+
+        Order actual = service.listOrders().stream()
+            .filter(order -> order.status() == OrderStatus.FAILED)
+            .findFirst()
+            .orElseThrow();
+        assertThat(service.getOrderEvents(actual.id()))
+            .extracting(OrderEvent::type)
+            .contains(OrderEventType.STOCK_RELEASED, OrderEventType.ORDER_FAILED);
+    }
+
+    @Test
+    void cancelOrderShouldRefundAndReleaseStock() {
+        InventoryGateway inventoryGateway = new LocalInventoryGateway();
+        PaymentGateway paymentGateway = new LocalPaymentGateway();
+        NotificationGateway notificationGateway = new LocalNotificationGateway();
+        OrderEventStore orderEventStore = new OrderEventStore();
+        OrderService service = new OrderService(inventoryGateway, paymentGateway, notificationGateway, orderEventStore);
+
+        Order order = service.createOrder(new CreateOrderRequest("C-1", List.of(
+            new OrderItem("SKU-100", 1, new BigDecimal("1499.00"))
+        )));
+
+        Order cancelled = service.cancelOrder(order.id());
+        assertThat(cancelled.status()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(service.getOrderEvents(order.id()))
+            .extracting(OrderEvent::type)
+            .contains(OrderEventType.PAYMENT_REFUNDED, OrderEventType.ORDER_CANCELLED);
     }
 }

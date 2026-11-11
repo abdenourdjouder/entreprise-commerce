@@ -1,5 +1,6 @@
 package com.enterprisecommerce.order;
 
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,6 +32,15 @@ public class OrderController {
     public ResponseEntity<Order> getOrder(@PathVariable String orderId) {
         Order order = orderService.getOrder(orderId);
         return order == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(order);
+    }
+
+    @GetMapping("/{orderId}/events")
+    public ResponseEntity<List<OrderEvent>> getOrderEvents(@PathVariable String orderId) {
+        Order order = orderService.getOrder(orderId);
+        if (order == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(orderService.getOrderEvents(orderId));
     }
 
     @PostMapping("/{orderId}/cancel")
